@@ -28,7 +28,8 @@ describe("Lock", function () {
   describe("Deployment", function () {
     it("Should set the right unlockTime", async function () {
       const { lock, unlockTime } = await loadFixture(deployOneYearLockFixture);
-
+      const tt = lock.unlockTime();
+      tt.then((value) => console.log(value));
       expect(await lock.unlockTime()).to.equal(unlockTime);
     });
 
