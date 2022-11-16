@@ -68,8 +68,7 @@ uint immutable fee;
 address payable owner;
 struct User{address account; uint totalBalance; uint currenciesCount;}
 User[] public _allUsers;
-// bytes[] public currencies = [abi.encode((0x746574686572))];
-//cardano, tether
+ERC20[] public _allCryptos;
 
 mapping(address=>User) public _users;
 mapping(address=>bool) public _usersBase;
@@ -85,23 +84,31 @@ event Swap(address account, bytes32 from, uint fromAmount, bytes32 toAmount, uin
 event Sender(address account);
 event Balance(uint balance);
 
-constructor(ERC20 _cardano, ERC20 _tether){
+constructor(ERC20 _cardano, ERC20 _tether, ERC20 _zilliqa){
     owner = payable(msg.sender);
     fee = 100 wei;
     cardano = _cardano;
     tether = _tether;
-    // _tokenToId[cardano] = temp;
-    // _idToToken[temp] = cardano;
-    // _idToToken[abi.encode(0x43617264616e)] = cardano;
-    // _tokenToId[cardano] = abi.encode(0x43617264616e);
+    zilliqa = _zilliqa;
+    _allCryptos.push(cardano);
+    _allCryptos.push(tether);
+    _allCryptos.push(zilliqa);
+    for(uint i; i<_allCryptos.length; i++){
+        _tokenToId[_allCryptos[i]] = i;
+        _idToToken[i] = _allCryptos[i];
+    }
     _tokensRate[tether] = 1;
     _tokensRate[cardano] = 20;
+    _tokensRate[zilliqa] = 40;
 }
 
-function getDddr()public view returns(address){
-    return address(cardano);
+function getTokenById(uint _id) public view returns(ERC20){
+    return _idToToken[_id];
 }
 
+function getTokenIdByToken(ERC20 _token) public view returns(uint){
+    return _tokenToId[_token];
+}
 
 function newUser() public returns(bool){
     require(msg.sender!=address(0), "not right account address");
@@ -131,8 +138,6 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
     token.transferFrom(tokensSeller, buyer, amountTokens);
     bool result = _purchaseProcess(buyer, amountTokens, token,  tokensSeller);
     require(result, "tokens was not sent");
-    
-    // _userTokensAmount[buyer][]
     _refund(amountOfWei - fee, token);
     _withdrawMoney(fee);
     emit BoughtToken(msg.sender, amountTokens, _tokensRate[token], block.timestamp);
@@ -160,14 +165,6 @@ function _purchaseProcess(address to, uint tokensAmount, ERC20 token, address  t
 //     }  
 // }
 
-function decodeCurrencyName(bytes memory data) public pure returns(string memory){
-   return abi.decode(data, (string));
-}
-
-function _encodeCurrencyNameToBytes(ERC20 token) public view returns(bytes memory){
-    return abi.encode(token.name());
-}
-
 function _validateBeforePurchase(address buyer , uint weiAmount) public view {
     require(_userExists(buyer), "user does not exist");
     require(buyer!=address(0), "address doesn't exists");
@@ -191,10 +188,6 @@ function _getTokensAmount(ERC20 token, uint weiAmount) internal view returns(uin
 function getCurrencies() public view  returns(bytes[] memory){
     // return _currencies;
 }
-
-function bytesTostring(bytes memory data)public pure returns(string memory){
-      return string(abi.decode(data, (string)));
-   }
 
 receive() external payable{}
 
