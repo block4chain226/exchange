@@ -59,4 +59,25 @@ describe("Exchange", () => {
       expect(await exchange.getTokenIdByToken(cardano.address)).to.eq(0);
     });
   });
+  describe.only("buyTokens", async () => {
+    it("User.tokenBalance should return 17", async () => {
+      //registration
+      await exchange.connect(addr1).newUser();
+      expect(await exchange._userExists(addr1.address)).to.eq(true);
+      // approve
+      await cardano.approve(exchange.address, 1000000);
+      expect(
+        await cardano.allowance(ownerOfCardano.address, exchange.address)
+      ).to.eq(1000000);
+      //buy tokens
+      const trans = await exchange
+        .connect(addr1)
+        .buyTokens(cardano.address, addr1.address, ownerOfCardano.address, {
+          value: ethers.utils.parseEther("0.00000000000000045", "ether"),
+          // gasLimit: 100000,
+        });
+      expect(await exchange.getUserTokenAmount(addr1.address, 0)).to.eq(17);
+      expect(await exchange.getUserTotalBalance(addr1.address)).to.eq(17);
+    });
+  });
 });

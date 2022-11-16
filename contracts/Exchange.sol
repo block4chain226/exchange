@@ -72,7 +72,8 @@ ERC20[] public _allCryptos;
 
 mapping(address=>User) public _users;
 mapping(address=>bool) public _usersBase;
-mapping(address=>mapping(bytes32=>uint)) _userTokensAmount;
+//address=>tokenId=>amount
+mapping(address=>mapping(uint=>uint)) _userTokensAmount;
 mapping(ERC20=>uint) _tokensRate;
 mapping(ERC20=>uint) _tokenToId;
 mapping(uint=>ERC20) _idToToken;
@@ -121,6 +122,10 @@ function newUser() public returns(bool){
     return true;
 }
 
+function getUserTotalBalance(address account) public view returns(uint){
+    return _users[account].totalBalance;
+}
+
 function _userExists(address account) public view returns(bool){
     return _usersBase[account];
 }
@@ -131,21 +136,26 @@ function _userExists(address account) public view returns(bool){
 
 function buyTokens(ERC20 token, address buyer, address tokensSeller) public payable returns(bool){
     uint amountOfWei = msg.value;
-    emit Sender(msg.sender);
-    _validateBeforePurchase(msg.sender, amountOfWei);
+    // _validateBeforePurchase(msg.sender, amountOfWei);
     uint amountTokens = _getTokensAmount(token, amountOfWei);
-    emit Balance(address(this).balance);
-    token.transferFrom(tokensSeller, buyer, amountTokens);
+    // token.transferFrom(tokensSeller, buyer, amountTokens);
     bool result = _purchaseProcess(buyer, amountTokens, token,  tokensSeller);
     require(result, "tokens was not sent");
-    _refund(amountOfWei - fee, token);
-    _withdrawMoney(fee);
+    //update buyer totalTokensBalance
+    User storage  currentUser = _users[buyer];
+    currentUser.totalBalance+=amountTokens;
+    //update user tokensAmount
+    uint tokenId = getTokenIdByToken(token);
+    _userTokensAmount[buyer][tokenId] = amountTokens;
+    // _refund(amountOfWei - fee, token);
+    // _withdrawMoney(fee);
     emit BoughtToken(msg.sender, amountTokens, _tokensRate[token], block.timestamp);
     return true;
 }
 
-function getTokenName(ERC20 token) public view returns(string memory){
-    return token.name();
+function getUserTokenAmount(address account, uint index) public view returns(uint){
+    require(_userExists(account));
+    return _userTokensAmount[account][index];
 }
 
 function sellToken(address token, uint amount) public returns(bool){}
@@ -189,7 +199,7 @@ function getCurrencies() public view  returns(bytes[] memory){
     // return _currencies;
 }
 
-receive() external payable{}
+// receive() external payable{}
 
 ///////////////////////////////
 
