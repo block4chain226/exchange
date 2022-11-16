@@ -1,0 +1,6 @@
+{
+  "solidity.remappingsUnix": ["@openzeppelin/=node_modules/@openzeppelin/"],
+  "trailing-spaces.highlightCurrentLine": false,
+  "solidity.defaultCompiler": "remote",
+  "solidity.packageDefaultDependenciesDirectory": "/Users/ivanpaas/Documents/BlockChain/exchange/node_modules/"
+}
