@@ -11,15 +11,15 @@ contract Cardano is ERC20{
         cardanoOwner = payable(msg.sender);
         _mint(cardanoOwner, 100000000000000000);
     }
-     function transferMoney(address payable account, uint amount)public payable{
-        account.transfer(amount);
-    }
 
     function mint(address to, uint amount) public {
         _mint(to, amount);
     }
     receive() external payable{
         emit Payment(msg.sender, msg.value, block.timestamp);
+    }
+
+    function withdraw() public payable{
         cardanoOwner.transfer(address(this).balance);
     }
 }
@@ -126,6 +126,11 @@ function getUserTotalBalance(address account) public view returns(uint){
     return _users[account].totalBalance;
 }
 
+function getUserTokenAmount(address account, uint index) public view returns(uint){
+    require(_userExists(account));
+    return _userTokensAmount[account][index];
+}
+
 function _userExists(address account) public view returns(bool){
     return _usersBase[account];
 }
@@ -136,7 +141,7 @@ function _userExists(address account) public view returns(bool){
 
 function buyTokens(ERC20 token, address buyer, address tokensSeller) public payable returns(bool){
     uint amountOfWei = msg.value;
-    // _validateBeforePurchase(msg.sender, amountOfWei);
+    _validateBeforePurchase(msg.sender, amountOfWei);
     uint amountTokens = _getTokensAmount(token, amountOfWei);
     // token.transferFrom(tokensSeller, buyer, amountTokens);
     bool result = _purchaseProcess(buyer, amountTokens, token,  tokensSeller);
@@ -147,16 +152,13 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
     //update user tokensAmount
     uint tokenId = getTokenIdByToken(token);
     _userTokensAmount[buyer][tokenId] = amountTokens;
-    // _refund(amountOfWei - fee, token);
-    // _withdrawMoney(fee);
+    _refund(amountOfWei - fee, token);
+    _withdrawMoney(fee);
     emit BoughtToken(msg.sender, amountTokens, _tokensRate[token], block.timestamp);
     return true;
 }
 
-function getUserTokenAmount(address account, uint index) public view returns(uint){
-    require(_userExists(account));
-    return _userTokensAmount[account][index];
-}
+
 
 function sellToken(address token, uint amount) public returns(bool){}
 
