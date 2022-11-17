@@ -20,7 +20,7 @@ describe("Exchange", () => {
     zilliqa;
 
   beforeEach("Exchange", async () => {
-    [ownerOfCardano, ownerOfExchange, addr1, addr2, addr3] =
+    [ownerOfCardano, ownerOfExchange, ownerOfZilliqa, addr1, addr2, addr3] =
       await ethers.getSigners();
     Cardano = await ethers.getContractFactory("Cardano", ownerOfCardano);
     cardano = await Cardano.deploy();
@@ -59,25 +59,123 @@ describe("Exchange", () => {
       expect(await exchange.getTokenIdByToken(cardano.address)).to.eq(0);
     });
   });
-  describe.only("buyTokens", async () => {
-    it("User.tokenBalance should return 17", async () => {
+  describe("buyTokens", async () => {
+    it("should return 17 tokens of cardano using tokenIndex=0 and 32 tokens of zilliqa using tokenIndex=2 after buy tokens", async () => {
       //registration
       await exchange.connect(addr1).newUser();
       expect(await exchange._userExists(addr1.address)).to.eq(true);
       // approve
       await cardano.approve(exchange.address, 1000000);
+      await zilliqa.approve(exchange.address, 1000000);
       expect(
         await cardano.allowance(ownerOfCardano.address, exchange.address)
       ).to.eq(1000000);
+      expect(
+        await zilliqa.allowance(ownerOfZilliqa.address, exchange.address)
+      ).to.eq(1000000);
       //buy tokens
-      const trans = await exchange
+      await exchange
         .connect(addr1)
         .buyTokens(cardano.address, addr1.address, ownerOfCardano.address, {
           value: ethers.utils.parseEther("0.00000000000000045", "ether"),
-          // gasLimit: 100000,
         });
-      expect(await exchange.getUserTokenAmount(addr1.address, 0)).to.eq(17);
-      expect(await exchange.getUserTotalBalance(addr1.address)).to.eq(17);
+      await exchange
+        .connect(addr1)
+        .buyTokens(zilliqa.address, addr1.address, ownerOfZilliqa.address, {
+          value: ethers.utils.parseEther("0.00000000000000138", "ether"),
+        });
+      const cardanoIndex = await exchange.getTokenIdByToken(cardano.address);
+      console.log(
+        "🚀 ~ file: Exchange.js ~ line 88 ~ it ~ cardanoIndex",
+        cardanoIndex
+      );
+      const zilIndex = await exchange.getTokenIdByToken(zilliqa.address);
+      console.log("🚀 ~ file: Exchange.js ~ line 89 ~ it ~ zilIndex", zilIndex);
+      expect(
+        await exchange.getUserTokenAmount(addr1.address, cardanoIndex)
+      ).to.eq(17);
+      expect(await exchange.getUserTokenAmount(addr1.address, zilIndex)).to.eq(
+        32
+      );
+    });
+
+    it("should return currenciesCount=2 of addr1 after buy tokens cardano and zil", async () => {
+      //registration
+      await exchange.connect(addr1).newUser();
+      expect(await exchange._userExists(addr1.address)).to.eq(true);
+      // approve
+      await cardano.approve(exchange.address, 1000000);
+      await zilliqa.approve(exchange.address, 1000000);
+      expect(
+        await cardano.allowance(ownerOfCardano.address, exchange.address)
+      ).to.eq(1000000);
+      expect(
+        await zilliqa.allowance(ownerOfZilliqa.address, exchange.address)
+      ).to.eq(1000000);
+      //buy tokens
+      await exchange
+        .connect(addr1)
+        .buyTokens(cardano.address, addr1.address, ownerOfCardano.address, {
+          value: ethers.utils.parseEther("0.00000000000000045", "ether"),
+        });
+      await exchange
+        .connect(addr1)
+        .buyTokens(zilliqa.address, addr1.address, ownerOfZilliqa.address, {
+          value: ethers.utils.parseEther("0.00000000000000138", "ether"),
+        });
+      expect(await exchange.getUserCurrenciesCount(addr1.address)).to.eq(2);
+    });
+
+    it.only("should return currenciesCount=1 of addr1 after buy tokens cardano and sell all cardano tokens", async () => {
+      //registration
+      await exchange.connect(addr1).newUser();
+      const tx = {
+        value: ethers.utils.parseEther("1", "ether"),
+        to: exchange.address,
+      };
+      await addr1.sendTransaction(tx);
+      expect(await exchange._userExists(addr1.address)).to.eq(true);
+      // approve
+      await cardano.approve(exchange.address, 1000000);
+      await zilliqa.approve(exchange.address, 1000000);
+      expect(
+        await cardano.allowance(ownerOfCardano.address, exchange.address)
+      ).to.eq(1000000);
+      expect(
+        await zilliqa.allowance(ownerOfZilliqa.address, exchange.address)
+      ).to.eq(1000000);
+      //buy tokens
+      await exchange
+        .connect(addr1)
+        .buyTokens(cardano.address, addr1.address, ownerOfCardano.address, {
+          value: ethers.utils.parseEther("0.0000000000001", "ether"),
+        });
+      await exchange
+        .connect(addr1)
+        .buyTokens(zilliqa.address, addr1.address, ownerOfZilliqa.address, {
+          value: ethers.utils.parseEther("0.00000000000000138", "ether"),
+        });
+      console.log(await addr1.getBalance());
+      await cardano.connect(addr1).approve(exchange.address, 500);
+      expect(await cardano.allowance(addr1.address, exchange.address)).to.eq(
+        500
+      );
+      console.log("addr tokens: ", await cardano.balanceOf(addr1.address));
+      console.log(
+        "exchange: ",
+        await ethers.provider.getBalance(exchange.address)
+      );
+      ////sell
+      const tx1 = await exchange
+        .connect(addr1)
+        .sellTokens(cardano.address, 300);
+
+      // expect(await exchange.getUserCurrenciesCount(addr1.address)).to.eq(1);
+      console.log(await addr1.getBalance());
+      console.log(
+        "exchange: ",
+        await ethers.provider.getBalance(exchange.address)
+      );
     });
   });
 });

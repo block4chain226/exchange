@@ -38,6 +38,9 @@ contract Cardano is ERC20{
 
     receive() external payable{
        emit Payment(msg.sender, msg.value, block.timestamp);
+    }
+
+    function withdraw() public payable{
         tetherOwner.transfer(address(this).balance);
     }
 }
@@ -53,8 +56,12 @@ contract Zilliqa is ERC20{
     function mint(address to, uint amount) public {
         _mint(to, amount);
     }
-    receive() external payable{
-        emit Payment(msg.sender, msg.value, block.timestamp);
+
+     receive() external payable{
+       emit Payment(msg.sender, msg.value, block.timestamp);
+    }
+
+    function withdraw() public payable{
         zilOwner.transfer(address(this).balance);
     }
 }
@@ -99,7 +106,7 @@ constructor(ERC20 _cardano, ERC20 _tether, ERC20 _zilliqa){
         _idToToken[i] = _allCryptos[i];
     }
     _tokensRate[tether] = 1;
-    _tokensRate[cardano] = 20;
+    _tokensRate[cardano] = 200;
     _tokensRate[zilliqa] = 40;
 }
 
@@ -126,6 +133,11 @@ function getUserTotalBalance(address account) public view returns(uint){
     return _users[account].totalBalance;
 }
 
+function getUserCurrenciesCount(address account) public view returns(uint){
+    User memory currentUser = _users[account];
+    return currentUser.currenciesCount;
+}
+
 function getUserTokenAmount(address account, uint index) public view returns(uint){
     require(_userExists(account));
     return _userTokensAmount[account][index];
@@ -143,14 +155,16 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
     uint amountOfWei = msg.value;
     _validateBeforePurchase(msg.sender, amountOfWei);
     uint amountTokens = _getTokensAmount(token, amountOfWei);
+    //
+    User storage  currentUser = _users[buyer];
+    uint amountOfToken = token.balanceOf(buyer);
     bool result = _purchaseProcess(buyer, amountTokens, token,  tokensSeller);
     require(result, "tokens was not sent");
-    //update buyer totalTokensBalance
-    User storage  currentUser = _users[buyer];
-    currentUser.totalBalance+=amountTokens;
+    //update buyer currenciesCount
+    amountOfToken == 0 ? currentUser.currenciesCount++ : currentUser.currenciesCount;
     //update user tokensAmount
     uint tokenId = getTokenIdByToken(token);
-    _userTokensAmount[buyer][tokenId] = amountTokens;
+    _userTokensAmount[buyer][tokenId] += amountTokens;
     _refund(amountOfWei - fee, token);
     _withdrawMoney(fee);
     emit BoughtToken(msg.sender, amountTokens, _tokensRate[token], block.timestamp);
@@ -158,13 +172,21 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
 }
 
 function sellTokens(ERC20 token, uint amount) public returns(bool){
-    _validateBeforeSell(token, msg.sender, amount);
+    uint tokensCosts = getTotalSelledTokensCosts(token, amount);
+    _validateBeforeSell(token, msg.sender, amount, tokensCosts);
+    User storage currentUser = _users[msg.sender];
     bool result = _sellProcess(amount, token);
     require(result, "tokens were not sold");
+    uint amountOfToken = token.balanceOf(msg.sender);
+    //update buyer currenciesCount
+    amountOfToken == 0 ? currentUser.currenciesCount-- : currentUser.currenciesCount;
+    //update user tokensAmount
+    uint tokenId = getTokenIdByToken(token);
+    _userTokensAmount[msg.sender][tokenId] -= amount;
+    //pay to owner of tokens
+    payable(msg.sender).transfer(tokensCosts);
     return true;
 }
-
-function sellToken(address token, uint amount) public returns(bool){}
 
 function _purchaseProcess(address to, uint tokensAmount, ERC20 token, address  tokensSeller) internal returns(bool){
     require(address(token)!=address(0), "token does not exists");
@@ -175,10 +197,9 @@ function _purchaseProcess(address to, uint tokensAmount, ERC20 token, address  t
 
 function _sellProcess(uint tokensAmount, ERC20 token) internal returns(bool){
     require(address(token)!=address(0), "token does not exists");
-    token.transfer(address(this), tokensAmount);
+    token.transferFrom(msg.sender, address(this), tokensAmount);
     return true;
 }
-// function sellToken(address token, uint amount) external override returns(bool);
 
 // function setCurrencies(bytes[] memory _currenciesArray) public  {
 //     for(uint i; i<_currenciesArray.length;i++){
@@ -193,8 +214,9 @@ function _validateBeforePurchase(address buyer , uint weiAmount) public view {
     require(weiAmount>fee*2, "you need to pay at least 200 wei");
 }
 
-function _validateBeforeSell(ERC20 token, address seller, uint amount) public view {
+function _validateBeforeSell(ERC20 token, address seller, uint amount, uint tokensCosts) public view {
     require(_userExists(seller), "user does not exist");
+    require(address(this).balance>=tokensCosts, "contract has not enough funds to pay for tokens");
     require(amount>0, "you can't sell 0 tokens");
     require(token.balanceOf(seller)>=amount, "not enough tokens");
 }
@@ -213,16 +235,12 @@ function _getTokensAmount(ERC20 token, uint weiAmount) internal view returns(uin
     return weiWithoutFee / _tokensRate[token];
 }
 
-function getTotalTokensCosts(ERC20 token, uint amount) internal view returns(uint){
+function getTotalSelledTokensCosts(ERC20 token, uint amount) internal view returns(uint){
     require(amount>0, "you can't sell 0 tokens");
     return _tokensRate[token] * amount;
 }
 
-function getCurrencies() public view  returns(bytes[] memory){
-    // return _currencies;
-}
-
-// receive() external payable{}
+receive() external payable{}
 
 ///////////////////////////////
 
