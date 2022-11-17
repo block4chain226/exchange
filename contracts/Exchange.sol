@@ -3,6 +3,7 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Cardano is ERC20{
     event Payment(address from, uint amount, uint time);
@@ -106,7 +107,7 @@ constructor(ERC20 _cardano, ERC20 _tether, ERC20 _zilliqa){
         _idToToken[i] = _allCryptos[i];
     }
     _tokensRate[tether] = 1;
-    _tokensRate[cardano] = 200;
+    _tokensRate[cardano] = 20;
     _tokensRate[zilliqa] = 40;
 }
 
@@ -200,12 +201,6 @@ function _sellProcess(uint tokensAmount, ERC20 token) internal returns(bool){
     token.transferFrom(msg.sender, address(this), tokensAmount);
     return true;
 }
-
-// function setCurrencies(bytes[] memory _currenciesArray) public  {
-//     for(uint i; i<_currenciesArray.length;i++){
-//         currencies.push(bytes(_currenciesArray[i]));
-//     }  
-// }
 
 function _validateBeforePurchase(address buyer , uint weiAmount) public view {
     require(_userExists(buyer), "user does not exist");
