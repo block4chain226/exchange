@@ -143,7 +143,6 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
     uint amountOfWei = msg.value;
     _validateBeforePurchase(msg.sender, amountOfWei);
     uint amountTokens = _getTokensAmount(token, amountOfWei);
-    // token.transferFrom(tokensSeller, buyer, amountTokens);
     bool result = _purchaseProcess(buyer, amountTokens, token,  tokensSeller);
     require(result, "tokens was not sent");
     //update buyer totalTokensBalance
@@ -158,15 +157,25 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
     return true;
 }
 
-
+function sellTokens(ERC20 token, uint amount) public returns(bool){
+    _validateBeforeSell(token, msg.sender, amount);
+    bool result = _sellProcess(amount, token);
+    require(result, "tokens were not sold");
+    return true;
+}
 
 function sellToken(address token, uint amount) public returns(bool){}
 
-function _purchaseProcess(address to, uint tokensAmount, ERC20 token, address  tokensSeller) public returns(bool){
+function _purchaseProcess(address to, uint tokensAmount, ERC20 token, address  tokensSeller) internal returns(bool){
     require(address(token)!=address(0), "token does not exists");
     require(tokensAmount>0, "you cant buy 0 tokens");
-    emit Sender(msg.sender);
     token.transferFrom(tokensSeller, to, tokensAmount);
+    return true;
+}
+
+function _sellProcess(uint tokensAmount, ERC20 token) internal returns(bool){
+    require(address(token)!=address(0), "token does not exists");
+    token.transfer(address(this), tokensAmount);
     return true;
 }
 // function sellToken(address token, uint amount) external override returns(bool);
@@ -184,6 +193,12 @@ function _validateBeforePurchase(address buyer , uint weiAmount) public view {
     require(weiAmount>fee*2, "you need to pay at least 200 wei");
 }
 
+function _validateBeforeSell(ERC20 token, address seller, uint amount) public view {
+    require(_userExists(seller), "user does not exist");
+    require(amount>0, "you can't sell 0 tokens");
+    require(token.balanceOf(seller)>=amount, "not enough tokens");
+}
+
 function _refund(uint amountOfWei, ERC20 token) public payable {
     payable(address(token)).transfer(amountOfWei);
 }
@@ -193,8 +208,14 @@ function _withdrawMoney(uint feeAmount) internal {
 }
 
 function _getTokensAmount(ERC20 token, uint weiAmount) internal view returns(uint){
+    require(weiAmount>0, "you didn't pay");
     uint weiWithoutFee = weiAmount - fee;
     return weiWithoutFee / _tokensRate[token];
+}
+
+function getTotalTokensCosts(ERC20 token, uint amount) internal view returns(uint){
+    require(amount>0, "you can't sell 0 tokens");
+    return _tokensRate[token] * amount;
 }
 
 function getCurrencies() public view  returns(bytes[] memory){
