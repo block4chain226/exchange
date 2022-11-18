@@ -155,27 +155,16 @@ describe("Exchange", () => {
         .buyTokens(zilliqa.address, addr1.address, ownerOfZilliqa.address, {
           value: ethers.utils.parseEther("0.00000000000000138", "ether"),
         });
-      console.log(await addr1.getBalance());
-      await cardano.connect(addr1).approve(exchange.address, 500);
+      await cardano.connect(addr1).approve(exchange.address, 4995);
       expect(await cardano.allowance(addr1.address, exchange.address)).to.eq(
-        500
-      );
-      console.log("addr tokens: ", await cardano.balanceOf(addr1.address));
-      console.log(
-        "exchange: ",
-        await ethers.provider.getBalance(exchange.address)
+        4995
       );
       ////sell
-      const tx1 = await exchange
-        .connect(addr1)
-        .sellTokens(cardano.address, 300);
-
-      // expect(await exchange.getUserCurrenciesCount(addr1.address)).to.eq(1);
-      console.log(await addr1.getBalance());
-      console.log(
-        "exchange: ",
-        await ethers.provider.getBalance(exchange.address)
-      );
+      console.log(await cardano.balanceOf(addr1.address));
+      await exchange.connect(addr1).sellTokens(cardano.address, 4995);
+      expect(await exchange.getUserCurrenciesCount(addr1.address)).to.eq(1);
     });
+
+    it("after addr1 will buy tokens owner of exchange contract must get 200 wei of fee", async () => {});
   });
 });
