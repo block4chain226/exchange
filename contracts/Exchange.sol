@@ -146,7 +146,7 @@ function _userExists(address account) public view returns(bool){
 
 function swap(ERC20 token1, ERC20 token2, uint amount) external returns(bool){
     require(address(token1)!=address(0), "token does not exists");
-    require(address(token2)!=address(0),"token does not exists");
+    require(address(token2)!=address(0), "token does not exists");
 }
 
 function buyTokens(ERC20 token, address buyer, address tokensSeller) public payable returns(bool){
