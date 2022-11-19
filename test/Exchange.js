@@ -126,7 +126,7 @@ describe("Exchange", () => {
       expect(await exchange.getUserCurrenciesCount(addr1.address)).to.eq(2);
     });
 
-    it.only("should return currenciesCount=1 of addr1 after buy tokens cardano and sell all cardano tokens", async () => {
+    it("should return currenciesCount=1 of addr1 after buy tokens cardano and sell all cardano tokens", async () => {
       //registration
       await exchange.connect(addr1).newUser();
       const tx = {
@@ -166,5 +166,33 @@ describe("Exchange", () => {
     });
 
     it("after addr1 will buy tokens owner of exchange contract must get 200 wei of fee", async () => {});
+  });
+
+  describe.only("Swap", async () => {
+    it("should return created swapOrder", async () => {
+      await exchange.connect(addr1).newUser();
+      const tx = {
+        value: ethers.utils.parseEther("1", "ether"),
+        to: exchange.address,
+      };
+      await addr1.sendTransaction(tx);
+      // approve
+      await cardano.approve(exchange.address, 1000000);
+      await zilliqa.approve(exchange.address, 1000000);
+      expect(
+        await cardano.allowance(ownerOfCardano.address, exchange.address)
+      ).to.eq(1000000);
+      expect(
+        await zilliqa.allowance(ownerOfZilliqa.address, exchange.address)
+      ).to.eq(1000000);
+      //buy tokens
+      await exchange
+        .connect(addr1)
+        .buyTokens(cardano.address, addr1.address, ownerOfCardano.address, {
+          value: ethers.utils.parseEther("0.0000000000001", "ether"),
+        });
+      await exchange.connect(addr1).createSwapOrder(1, 1, 10, 22);
+      console.log(await exchange.getSwipeOrder(addr1.address, 0));
+    });
   });
 });

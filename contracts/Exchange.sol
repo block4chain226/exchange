@@ -74,13 +74,15 @@ ERC20 public zilliqa;
 
 uint immutable fee;
 // address payable owner;
-struct User{address account; uint currenciesCount;}
+struct User{address account; uint currenciesCount; uint swapOrdersCount;}
+struct SwapOrder{uint tokenToSellId; uint amount; uint rate; uint tokenToBuyId;}
 User[] public _allUsers;
 ERC20[] public _allCryptos;
 
 mapping(address=>User) public _users;
 mapping(address=>bool) public _usersBase;
 //address=>tokenId=>amount
+mapping(address=>mapping(uint=>SwapOrder)) _swapOrders;
 mapping(address=>mapping(uint=>uint)) _userTokensAmount;
 mapping(ERC20=>uint) _tokensRate;
 mapping(ERC20=>uint) _tokenToId;
@@ -89,9 +91,7 @@ mapping(uint=>ERC20) _idToToken;
 event NewUser(address account, uint date);
 event BoughtToken(address buyer, uint amount, uint rate, uint date);
 event SellToken(address seller, uint amount, uint rate, uint date);
-event Swap(address account, bytes32 from, uint fromAmount, bytes32 toAmount, uint date);
-event Sender(address account);
-event Balance(uint balance);
+event SwapCreated(address owner, uint tokenToSellId, uint tokenToBuyId, uint amount, uint rate, uint date);
 
 constructor(ERC20 _cardano, ERC20 _tether, ERC20 _zilliqa){
     // owner = payable(msg.sender);
@@ -122,7 +122,7 @@ function getTokenIdByToken(ERC20 _token) public view returns(uint){
 function newUser() public returns(bool){
     require(msg.sender!=address(0), "not right account address");
     require(!_userExists(msg.sender), "user already exists");
-    User memory _newUser = User(msg.sender, 0);
+    User memory _newUser = User(msg.sender, 0, 0);
     _allUsers.push(_newUser);
     _users[msg.sender] = _newUser;
     _usersBase[msg.sender] = true;
@@ -144,9 +144,33 @@ function _userExists(address account) public view returns(bool){
     return _usersBase[account];
 }
 
-function swap(ERC20 token1, ERC20 token2, uint amount) external returns(bool){
-    require(address(token1)!=address(0), "token does not exists");
-    require(address(token2)!=address(0), "token does not exists");
+function createSwapOrder(uint tokenToSellId, uint tokenToBuyId, uint amount, uint rate) public {
+     require(_userExists(msg.sender), "not authorized");
+     ERC20 tokenToSell = _idToToken[tokenToSellId];
+     ERC20 tokenToBuy = _idToToken[tokenToBuyId];
+     require(address(tokenToSell)!=address(0), "token does not exists");
+     require(address(tokenToBuy)!=address(0), "token does not exists");
+     require(amount>0, "amount must be more than 0");
+     require(tokenToSell.balanceOf(msg.sender)>=amount, "you have not enough tokens");
+     SwapOrder memory newOrder = SwapOrder(tokenToSellId, tokenToBuyId, amount, rate);
+     User storage currentUser = _users[msg.sender]; 
+     _swapOrders[msg.sender][currentUser.swapOrdersCount] = newOrder;
+     currentUser.swapOrdersCount++;
+     emit SwapCreated(msg.sender, tokenToSellId, tokenToBuyId, amount, rate, block.timestamp);
+}
+
+function swap(uint tokenToSellId, uint tokenToBuyId, uint amount) external returns(bool){
+    ERC20 tokenToSell = _idToToken[tokenToSellId];
+    ERC20 tokenToBuy = _idToToken[tokenToBuyId];
+    require(address(tokenToSell)!=address(0), "token does not exists");
+    require(address(tokenToBuy)!=address(0), "token does not exists");
+    require(_userExists(msg.sender), "not authorized");
+    
+
+}
+
+function getSwipeOrder(address account, uint index) public view returns(SwapOrder memory){
+    return _swapOrders[account][index];
 }
 
 function buyTokens(ERC20 token, address buyer, address tokensSeller) public payable returns(bool){
@@ -183,6 +207,7 @@ function sellTokens(ERC20 token, uint amount) public returns(bool){
     _userTokensAmount[msg.sender][tokenId] -= amount;
     //pay to owner of tokens
     payable(msg.sender).transfer(tokensCosts);
+    emit SellToken(msg.sender, amount, _tokensRate[token], block.timestamp);
     return true;
 }
 
