@@ -5,6 +5,7 @@ pragma solidity >=0.7.0 <0.9.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+
 contract Cardano is ERC20{
     event Payment(address from, uint amount, uint time);
     address payable public  cardanoOwner;
@@ -68,21 +69,27 @@ contract Zilliqa is ERC20{
 }
 
 contract Exchange is Ownable{
+
 ERC20 public tether;
 ERC20 public cardano;
 ERC20 public zilliqa;
+//cardano 0x5FbDB2315678afecb367f032d93F642f64180aa3
+//teth 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+//zill 0x663F3ad617193148711d28f5334eE4Ed07016602
 
 uint immutable fee;
 // address payable owner;
 struct User{address account; uint currenciesCount; uint swapOrdersCount;}
-struct SwapOrder{uint tokenToSellId; uint amount; uint rate; uint tokenToBuyId;}
+struct SwapOrder{uint swapOrderId; address owner; uint tokenToSellId; uint amount; uint rate; uint tokenToBuyId; bool isCompleted;}
+uint private _swapOrderId;
 User[] public _allUsers;
 ERC20[] public _allCryptos;
+SwapOrder[] private _allSwapOrders;
 
 mapping(address=>User) public _users;
 mapping(address=>bool) public _usersBase;
 //address=>tokenId=>amount
-mapping(address=>mapping(uint=>SwapOrder)) _swapOrders;
+mapping(address=>mapping(uint=>SwapOrder)) _userSwapOrders;
 mapping(address=>mapping(uint=>uint)) _userTokensAmount;
 mapping(ERC20=>uint) _tokensRate;
 mapping(ERC20=>uint) _tokenToId;
@@ -92,6 +99,7 @@ event NewUser(address account, uint date);
 event BoughtToken(address buyer, uint amount, uint rate, uint date);
 event SellToken(address seller, uint amount, uint rate, uint date);
 event SwapCreated(address owner, uint tokenToSellId, uint tokenToBuyId, uint amount, uint rate, uint date);
+event Swap(address seller, uint sellTokensId,uint sellTokensAmount, address buyer, uint buyTokensId, uint buyTokensAmount, uint sellTokensRate, uint date);
 
 constructor(ERC20 _cardano, ERC20 _tether, ERC20 _zilliqa){
     // owner = payable(msg.sender);
@@ -106,7 +114,7 @@ constructor(ERC20 _cardano, ERC20 _tether, ERC20 _zilliqa){
         _tokenToId[_allCryptos[i]] = i;
         _idToToken[i] = _allCryptos[i];
     }
-    _tokensRate[tether] = 1;
+    _tokensRate[tether] = 20;
     _tokensRate[cardano] = 20;
     _tokensRate[zilliqa] = 40;
 }
@@ -128,6 +136,10 @@ function newUser() public returns(bool){
     _usersBase[msg.sender] = true;
     emit NewUser(msg.sender, block.timestamp);
     return true;
+}
+
+function getUserSwapOrdersCount(address account) public view returns(uint){
+    return _users[account].swapOrdersCount;
 }
 
 function getUserCurrenciesCount(address account) public view returns(uint){
@@ -152,25 +164,42 @@ function createSwapOrder(uint tokenToSellId, uint tokenToBuyId, uint amount, uin
      require(address(tokenToBuy)!=address(0), "token does not exists");
      require(amount>0, "amount must be more than 0");
      require(tokenToSell.balanceOf(msg.sender)>=amount, "you have not enough tokens");
-     SwapOrder memory newOrder = SwapOrder(tokenToSellId, tokenToBuyId, amount, rate);
+     SwapOrder memory newOrder = SwapOrder(_swapOrderId, msg.sender, tokenToSellId, amount, rate, tokenToBuyId, false);
      User storage currentUser = _users[msg.sender]; 
-     _swapOrders[msg.sender][currentUser.swapOrdersCount] = newOrder;
+     _userSwapOrders[msg.sender][currentUser.swapOrdersCount] = newOrder;
+     _allSwapOrders.push(newOrder);
      currentUser.swapOrdersCount++;
+     _swapOrderId++;
      emit SwapCreated(msg.sender, tokenToSellId, tokenToBuyId, amount, rate, block.timestamp);
 }
 
-function swap(uint tokenToSellId, uint tokenToBuyId, uint amount) external returns(bool){
+function getTokenRate(ERC20 token) public view returns(uint){
+    return _tokensRate[token];
+}
+
+function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amount) public {
     ERC20 tokenToSell = _idToToken[tokenToSellId];
     ERC20 tokenToBuy = _idToToken[tokenToBuyId];
     require(address(tokenToSell)!=address(0), "token does not exists");
     require(address(tokenToBuy)!=address(0), "token does not exists");
     require(_userExists(msg.sender), "not authorized");
-    
+    SwapOrder storage currentSwapOrder = _allSwapOrders[swapOrderId]; 
+    uint tokensToBuyAmount = getTokensToBuyAmount(tokenToBuy, amount, currentSwapOrder.rate);
+    require(tokenToBuy.allowance(msg.sender, address(this))>=tokensToBuyAmount, "not enough allowance");
+    require(tokenToSell.allowance(currentSwapOrder.owner, address(this))>=amount, "not enough allowance");
+    tokenToSell.transferFrom(currentSwapOrder.owner, msg.sender, amount);
+    tokenToBuy.transferFrom(msg.sender, currentSwapOrder.owner, tokensToBuyAmount);
+    currentSwapOrder.isCompleted = true;
+    emit Swap(currentSwapOrder.owner, tokenToSellId, amount, msg.sender, tokenToBuyId, tokensToBuyAmount, currentSwapOrder.rate, block.timestamp);
+}
 
+function getTokensToBuyAmount(ERC20 tokenToBuy, uint tokensToSellAmount, uint tokenToSellRate) internal view returns(uint){
+    uint totalPriceForSellTokens = tokenToSellRate * tokensToSellAmount;
+    return totalPriceForSellTokens / _tokensRate[tokenToBuy];
 }
 
 function getSwipeOrder(address account, uint index) public view returns(SwapOrder memory){
-    return _swapOrders[account][index];
+    return _userSwapOrders[account][index];
 }
 
 function buyTokens(ERC20 token, address buyer, address tokensSeller) public payable returns(bool){
