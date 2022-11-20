@@ -204,11 +204,14 @@ function getSwipeOrder(address account, uint index) public view returns(SwapOrde
     return _userSwapOrders[account][index];
 }
 
+event Return(address buyer, uint amount);
 function buyTokens(ERC20 token, address buyer, address tokensSeller) public payable returns(bool){
+    uint amountTokens;
+    uint weiToReturnToBuyer;
     uint amountOfWei = msg.value;
     _validateBeforePurchase(msg.sender, amountOfWei);
-    uint amountTokens = _getTokensAmount(token, amountOfWei);
-    //
+    (amountTokens, weiToReturnToBuyer) = _getTokensAmount(token, amountOfWei);
+    
     User storage  currentUser = _users[buyer];
     uint amountOfToken = token.balanceOf(buyer);
     bool result = _purchaseProcess(buyer, amountTokens, token,  tokensSeller);
@@ -218,6 +221,12 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
     //update user tokensAmount
     uint tokenId = getTokenIdByToken(token);
     _userTokensAmount[buyer][tokenId] += amountTokens;
+    //if count of tokens will not integer, difference of wei will be returned to buyer
+    if(weiToReturnToBuyer!=0){
+        payable(buyer).transfer(weiToReturnToBuyer);
+        amountOfWei-=weiToReturnToBuyer;
+        emit Return(buyer,weiToReturnToBuyer);
+    }
     _refund(amountOfWei - fee, token);
     _withdrawMoney(fee);
     emit BoughtToken(msg.sender, amountTokens, _tokensRate[token], block.timestamp);
@@ -277,10 +286,12 @@ function _withdrawMoney(uint feeAmount) internal {
     payable(owner()).transfer(feeAmount);
 }
 
-function _getTokensAmount(ERC20 token, uint weiAmount) internal view returns(uint){
+function _getTokensAmount(ERC20 token, uint weiAmount) internal view returns(uint tokensAmount, uint weiToReturnToBuyer){
     require(weiAmount>0, "you didn't pay");
     uint weiWithoutFee = weiAmount - fee;
-    return weiWithoutFee / _tokensRate[token];
+    tokensAmount = weiWithoutFee / _tokensRate[token];
+    uint weiAmountForTokens = tokensAmount * _tokensRate[token];
+    weiToReturnToBuyer = weiWithoutFee - weiAmountForTokens;
 }
 
 function getTotalSelledTokensCosts(ERC20 token, uint amount) internal view returns(uint){
