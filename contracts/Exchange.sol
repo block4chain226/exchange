@@ -156,8 +156,9 @@ function _userExists(address account) public view returns(bool){
     return _usersBase[account];
 }
 
-function createSwapOrder(uint tokenToSellId, uint tokenToBuyId, uint amount, uint rate) public {
+function createSwapOrder(uint tokenToSellId, uint tokenToBuyId, uint amount, uint rate) public payable {
      require(_userExists(msg.sender), "not authorized");
+     require(msg.value==fee, "you have not enough funds to pay fee(200 wei)");
      ERC20 tokenToSell = _idToToken[tokenToSellId];
      ERC20 tokenToBuy = _idToToken[tokenToBuyId];
      require(address(tokenToSell)!=address(0), "token does not exists");
@@ -177,7 +178,8 @@ function getTokenRate(ERC20 token) public view returns(uint){
     return _tokensRate[token];
 }
 
-function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amount) public {
+function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amount) public payable {
+    require(msg.value==fee, "you have not enough funds to pay fee(200 wei)");
     ERC20 tokenToSell = _idToToken[tokenToSellId];
     ERC20 tokenToBuy = _idToToken[tokenToBuyId];
     require(address(tokenToSell)!=address(0), "token does not exists");
@@ -235,7 +237,7 @@ function sellTokens(ERC20 token, uint amount) public returns(bool){
     uint tokenId = getTokenIdByToken(token);
     _userTokensAmount[msg.sender][tokenId] -= amount;
     //pay to owner of tokens
-    payable(msg.sender).transfer(tokensCosts);
+    payable(msg.sender).transfer(tokensCosts-fee);
     emit SellToken(msg.sender, amount, _tokensRate[token], block.timestamp);
     return true;
 }
@@ -287,7 +289,9 @@ function getTotalSelledTokensCosts(ERC20 token, uint amount) internal view retur
 }
 
 
-receive() external payable{}
+receive() external payable{
+    // payable(owner()).transfer(address(this).balance);
+}
 
 ///////////////////////////////
 
