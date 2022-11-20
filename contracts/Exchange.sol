@@ -232,7 +232,7 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
 }
 
 function sellTokens(ERC20 token, uint amount) public returns(bool){
-    uint tokensCosts = getTotalSelledTokensCosts(token, amount);
+    uint tokensCosts = getTotalSellTokensCosts(token, amount);
     _validateBeforeSell(token, msg.sender, amount, tokensCosts);
     User storage currentUser = _users[msg.sender];
     bool result = _sellProcess(amount, token);
@@ -280,8 +280,8 @@ function _refund(uint amountOfWei, ERC20 token) public payable {
     payable(address(token)).transfer(amountOfWei);
 }
 
-function _withdrawMoney(uint feeAmount) internal {
-    payable(owner()).transfer(feeAmount);
+function withdrawMoney() public onlyOwner() {
+    payable(owner()).transfer(address(this).balance);
 }
 
 function _getTokensAmount(ERC20 token, uint weiAmount) internal view returns(uint tokensAmount, uint weiToReturnToBuyer){
@@ -292,7 +292,7 @@ function _getTokensAmount(ERC20 token, uint weiAmount) internal view returns(uin
     weiToReturnToBuyer = weiWithoutFee - weiAmountForTokens;
 }
 
-function getTotalSelledTokensCosts(ERC20 token, uint amount) internal view returns(uint){
+function getTotalSellTokensCosts(ERC20 token, uint amount) internal view returns(uint){
     require(amount>0, "you can't sell 0 tokens");
     return _tokensRate[token] * amount;
 }

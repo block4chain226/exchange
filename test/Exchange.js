@@ -281,4 +281,22 @@ describe("Exchange", () => {
 
     it("after swap 100 ada(23wei) per token for zil(4owei) addr2(buyer) should get back ", async () => {});
   });
+
+  describe.only("Ownable", async () => {
+    it("only ownerOfExchange can run withdrawMoney()", async () => {
+      await addr1.sendTransaction({
+        value: ethers.utils.parseEther("1", "ether"),
+        to: exchange.address,
+      });
+      console.log(
+        "balance: ",
+        await ethers.provider.getBalance(exchange.address)
+      );
+      await exchange.connect(ownerOfExchange)._withdrawMoney();
+      console.log(
+        "balance: ",
+        await ethers.provider.getBalance(exchange.address)
+      );
+    });
+  });
 });
