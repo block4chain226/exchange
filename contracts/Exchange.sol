@@ -158,7 +158,7 @@ function _userExists(address account) public view returns(bool){
 
 function createSwapOrder(uint tokenToSellId, uint tokenToBuyId, uint amount, uint rate) public payable {
      require(_userExists(msg.sender), "not authorized");
-     require(msg.value==fee, "you have not enough funds to pay fee(200 wei)");
+     require(msg.value==fee, "you have not enough funds to pay fee(100 wei)");
      ERC20 tokenToSell = _idToToken[tokenToSellId];
      ERC20 tokenToBuy = _idToToken[tokenToBuyId];
      require(address(tokenToSell)!=address(0), "token does not exists");
@@ -179,7 +179,7 @@ function getTokenRate(ERC20 token) public view returns(uint){
 }
 
 function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amount) public payable {
-    require(msg.value==fee, "you have not enough funds to pay fee(200 wei)");
+    require(msg.value==fee, "you have not enough funds to pay fee(100 wei)");
     ERC20 tokenToSell = _idToToken[tokenToSellId];
     ERC20 tokenToBuy = _idToToken[tokenToBuyId];
     require(address(tokenToSell)!=address(0), "token does not exists");
@@ -204,7 +204,6 @@ function getSwipeOrder(address account, uint index) public view returns(SwapOrde
     return _userSwapOrders[account][index];
 }
 
-event Return(address buyer, uint amount);
 function buyTokens(ERC20 token, address buyer, address tokensSeller) public payable returns(bool){
     uint amountTokens;
     uint weiToReturnToBuyer;
@@ -225,7 +224,6 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
     if(weiToReturnToBuyer!=0){
         payable(buyer).transfer(weiToReturnToBuyer);
         amountOfWei-=weiToReturnToBuyer;
-        emit Return(buyer,weiToReturnToBuyer);
     }
     _refund(amountOfWei - fee, token);
     // _withdrawMoney(fee);
