@@ -228,7 +228,7 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
         emit Return(buyer,weiToReturnToBuyer);
     }
     _refund(amountOfWei - fee, token);
-    _withdrawMoney(fee);
+    // _withdrawMoney(fee);
     emit BoughtToken(msg.sender, amountTokens, _tokensRate[token], block.timestamp);
     return true;
 }
