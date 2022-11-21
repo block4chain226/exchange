@@ -206,7 +206,15 @@ function _decreaseUserTokensAmount(ERC20 token, address account, uint tokensAmou
 function _incrementUserCurrenciesAmount(ERC20 token, address account, uint tokensAmount) internal {
      User storage  currentUser = _users[account];
      uint amountOfToken = token.balanceOf(account);
+     //if before buing balance of token==0 we increment
      amountOfToken == 0 ? currentUser.currenciesCount++ : currentUser.currenciesCount;
+}
+
+function _decrementUserCurrenciesAmount(ERC20 token, address account, uint tokensAmount) internal {
+     User storage  currentUser = _users[account];
+     uint amountOfToken = token.balanceOf(account);
+     //if after selling balance of token==0 we decrement
+     amountOfToken == 0 ? currentUser.currenciesCount-- : currentUser.currenciesCount;
 }
 
 
