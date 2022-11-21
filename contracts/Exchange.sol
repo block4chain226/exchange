@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 
-contract Cardano is ERC20{
+contract Cardano is ERC20, Ownable{
     event Payment(address from, uint amount, uint time);
     address payable public  cardanoOwner;
     constructor() ERC20("Cardano", "ADA"){
@@ -21,12 +21,16 @@ contract Cardano is ERC20{
         emit Payment(msg.sender, msg.value, block.timestamp);
     }
 
-    function withdraw() public payable{
+    function get()public view returns(uint){
+        return cardanoOwner.balance;
+    }
+
+    function withdraw() public payable onlyOwner{
         cardanoOwner.transfer(address(this).balance);
     }
 }
 
-    contract Tether is ERC20{
+    contract Tether is ERC20, Ownable{
     event Payment(address from, uint amount, uint time);
     address payable public  tetherOwner;
     constructor() ERC20("Tether", "USDT"){
@@ -42,12 +46,12 @@ contract Cardano is ERC20{
        emit Payment(msg.sender, msg.value, block.timestamp);
     }
 
-    function withdraw() public payable{
+    function withdraw() public payable onlyOwner{
         tetherOwner.transfer(address(this).balance);
     }
 }
 
-contract Zilliqa is ERC20{
+contract Zilliqa is ERC20, Ownable{
     event Payment(address from, uint amount, uint time);
     address payable public  zilOwner;
     constructor() ERC20("Zil", "ZIL"){
@@ -63,7 +67,7 @@ contract Zilliqa is ERC20{
        emit Payment(msg.sender, msg.value, block.timestamp);
     }
 
-    function withdraw() public payable{
+    function withdraw() public payable onlyOwner{
         zilOwner.transfer(address(this).balance);
     }
 }
@@ -119,14 +123,7 @@ constructor(ERC20 _cardano, ERC20 _tether, ERC20 _zilliqa){
     _tokensRate[zilliqa] = 40;
 }
 
-function getTokenById(uint _id) public view returns(ERC20){
-    return _idToToken[_id];
-}
-
-function getTokenIdByToken(ERC20 _token) public view returns(uint){
-    return _tokenToId[_token];
-}
-
+///////////////////////////////User
 function newUser() public returns(bool){
     require(msg.sender!=address(0), "not right account address");
     require(!_userExists(msg.sender), "user already exists");
@@ -156,6 +153,7 @@ function _userExists(address account) public view returns(bool){
     return _usersBase[account];
 }
 
+//////////////////////////////////Swap
 function createSwapOrder(uint tokenToSellId, uint tokenToBuyId, uint amount, uint rate) public payable {
      require(_userExists(msg.sender), "not authorized");
      require(msg.value==fee, "you have not enough funds to pay fee(100 wei)");
@@ -172,10 +170,6 @@ function createSwapOrder(uint tokenToSellId, uint tokenToBuyId, uint amount, uin
      currentUser.swapOrdersCount++;
      _swapOrderId++;
      emit SwapCreated(msg.sender, tokenToSellId, tokenToBuyId, amount, rate, block.timestamp);
-}
-
-function getTokenRate(ERC20 token) public view returns(uint){
-    return _tokensRate[token];
 }
 
 function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amount) public payable {
@@ -195,15 +189,11 @@ function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amou
     emit Swap(currentSwapOrder.owner, tokenToSellId, amount, msg.sender, tokenToBuyId, tokensToBuyAmount, currentSwapOrder.rate, block.timestamp);
 }
 
-function getTokensToBuyAmount(ERC20 tokenToBuy, uint tokensToSellAmount, uint tokenToSellRate) internal view returns(uint){
-    uint totalPriceForSellTokens = tokenToSellRate * tokensToSellAmount;
-    return totalPriceForSellTokens / _tokensRate[tokenToBuy];
-}
-
 function getSwipeOrder(address account, uint index) public view returns(SwapOrder memory){
     return _userSwapOrders[account][index];
 }
 
+//////////////////////////////////Buy tokens
 function buyTokens(ERC20 token, address buyer, address tokensSeller) public payable returns(bool){
     uint amountTokens;
     uint weiToReturnToBuyer;
@@ -231,6 +221,21 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
     return true;
 }
 
+function _purchaseProcess(address to, uint tokensAmount, ERC20 token, address  tokensSeller) internal returns(bool){
+    require(address(token)!=address(0), "token does not exists");
+    require(tokensAmount>0, "you cant buy 0 tokens");
+    token.transferFrom(tokensSeller, to, tokensAmount);
+    return true;
+}
+
+function _validateBeforePurchase(address buyer , uint weiAmount) public view {
+    require(_userExists(buyer), "user does not exist");
+    require(buyer!=address(0), "address doesn't exists");
+    require(weiAmount>0, "not enough funds");
+    require(weiAmount>fee*2, "you need to pay at least 200 wei");
+}
+
+/////////////////////////////////Sell tokens
 function sellTokens(ERC20 token, uint amount) public returns(bool){
     uint tokensCosts = getTotalSellTokensCosts(token, amount);
     _validateBeforeSell(token, msg.sender, amount, tokensCosts);
@@ -249,24 +254,10 @@ function sellTokens(ERC20 token, uint amount) public returns(bool){
     return true;
 }
 
-function _purchaseProcess(address to, uint tokensAmount, ERC20 token, address  tokensSeller) internal returns(bool){
-    require(address(token)!=address(0), "token does not exists");
-    require(tokensAmount>0, "you cant buy 0 tokens");
-    token.transferFrom(tokensSeller, to, tokensAmount);
-    return true;
-}
-
 function _sellProcess(uint tokensAmount, ERC20 token) internal returns(bool){
     require(address(token)!=address(0), "token does not exists");
     token.transferFrom(msg.sender, address(this), tokensAmount);
     return true;
-}
-
-function _validateBeforePurchase(address buyer , uint weiAmount) public view {
-    require(_userExists(buyer), "user does not exist");
-    require(buyer!=address(0), "address doesn't exists");
-    require(weiAmount>0, "not enough funds");
-    require(weiAmount>fee*2, "you need to pay at least 200 wei");
 }
 
 function _validateBeforeSell(ERC20 token, address seller, uint amount, uint tokensCosts) public view {
@@ -276,14 +267,7 @@ function _validateBeforeSell(ERC20 token, address seller, uint amount, uint toke
     require(token.balanceOf(seller)>=amount, "not enough tokens");
 }
 
-function _refund(uint amountOfWei, ERC20 token) public payable {
-    payable(address(token)).transfer(amountOfWei);
-}
-
-function withdrawMoney() public onlyOwner() {
-    payable(owner()).transfer(address(this).balance);
-}
-
+//////////////////////////////Tokens functions
 function _getTokensAmount(ERC20 token, uint weiAmount) internal view returns(uint tokensAmount, uint weiToReturnToBuyer){
     require(weiAmount>0, "you didn't pay");
     uint weiWithoutFee = weiAmount - fee;
@@ -297,12 +281,32 @@ function getTotalSellTokensCosts(ERC20 token, uint amount) internal view returns
     return _tokensRate[token] * amount;
 }
 
-
-receive() external payable{
-    // payable(owner()).transfer(address(this).balance);
+function getTokenById(uint _id) public view returns(ERC20){
+    return _idToToken[_id];
 }
 
-///////////////////////////////
+function getTokenIdByToken(ERC20 _token) public view returns(uint){
+    return _tokenToId[_token];
+}
 
+function getTokensToBuyAmount(ERC20 tokenToBuy, uint tokensToSellAmount, uint tokenToSellRate) internal view returns(uint){
+    uint totalPriceForSellTokens = tokenToSellRate * tokensToSellAmount;
+    return totalPriceForSellTokens / _tokensRate[tokenToBuy];
+}
 
+function getTokenRate(ERC20 token) public view returns(uint){
+    return _tokensRate[token];
+}
+
+//////////////////////////Withdraw operations
+function _refund(uint amountOfWei, ERC20 token) public payable {
+    payable(address(token)).transfer(amountOfWei);
+}
+
+function withdrawMoney() public onlyOwner() {
+    payable(owner()).transfer(address(this).balance);
+}
+
+receive() external payable{
+}
 }

@@ -60,7 +60,7 @@ describe("Exchange", () => {
     });
   });
 
-  describe("buyTokens", async () => {
+  describe.only("buyTokens", async () => {
     it("should return 17 tokens of cardano using tokenIndex=0 and 32 tokens of zilliqa using tokenIndex=2 after buy tokens", async () => {
       //registration
       await exchange.connect(addr1).newUser();
@@ -166,7 +166,27 @@ describe("Exchange", () => {
       expect(await exchange.getUserCurrenciesCount(addr1.address)).to.eq(1);
     });
 
-    it("after addr1 will buy tokens owner of exchange contract must get 200 wei of fee", async () => {});
+    it.only("after addr1 will buy cardano tokens owner of cardano contract must get 200 wei of fee", async () => {
+      //registration
+      await exchange.connect(addr1).newUser();
+      expect(await exchange._userExists(addr1.address)).to.eq(true);
+      // approve
+      await cardano.approve(exchange.address, 1000000);
+      console.log(await ethers.provider.getBalance(ownerOfCardano.address));
+      expect(
+        await cardano.allowance(ownerOfCardano.address, exchange.address)
+      ).to.eq(1000000);
+      //buy tokens
+      await exchange
+        .connect(addr1)
+        .buyTokens(cardano.address, addr1.address, ownerOfCardano.address, {
+          value: ethers.utils.parseEther("0.000000000000045", "ether"),
+        });
+      await cardano.connect(ownerOfCardano).withdraw();
+      expect(
+        await ethers.provider.getBalance(ownerOfCardano.address)
+      ).to.changeEtherBalance(ownerOfCardano.address, 45000);
+    });
   });
 
   describe("sellTokens", async () => {
@@ -221,7 +241,7 @@ describe("Exchange", () => {
       expect(await exchange.getUserSwapOrdersCount(addr1.address)).to.eq(1);
     });
 
-    it.only("after swap addr1 should have 61 zil on his balance and addr2 should have 98 ada on his balance", async () => {
+    it("after swap addr1 should have 61 zil on his balance and addr2 should have 98 ada on his balance", async () => {
       await exchange.connect(addr1).newUser();
       console.log(
         "exchange balance",
@@ -282,7 +302,7 @@ describe("Exchange", () => {
     it("after swap 100 ada(23wei) per token for zil(4owei) addr2(buyer) should get back ", async () => {});
   });
 
-  describe.only("Ownable", async () => {
+  describe("Ownable", async () => {
     it("only ownerOfExchange can run withdrawMoney()", async () => {
       await addr1.sendTransaction({
         value: ethers.utils.parseEther("1", "ether"),
