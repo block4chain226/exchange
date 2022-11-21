@@ -203,6 +203,14 @@ function _decreaseUserTokensAmount(ERC20 token, address account, uint tokensAmou
     _userTokensAmount[account][tokenId] -= tokensAmount;
 }
 
+function _incrementUserCurrenciesAmount(ERC20 token, address account, uint tokensAmount) internal {
+     User storage  currentUser = _users[account];
+     uint amountOfToken = token.balanceOf(account);
+     amountOfToken == 0 ? currentUser.currenciesCount++ : currentUser.currenciesCount;
+}
+
+
+
 function getSwipeOrder(address account, uint index) public view returns(SwapOrder memory){
     return _userSwapOrders[account][index];
 }
