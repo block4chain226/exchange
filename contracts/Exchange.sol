@@ -193,9 +193,14 @@ function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amou
     emit Swap(currentSwapOrder.owner, tokenToSellId, amount, msg.sender, tokenToBuyId, tokensToBuyAmount, currentSwapOrder.rate, block.timestamp);
 }
 
-function _increaseUserTokensAmount(ERC20 token, address account, uint amountTokens) internal {
+function _increaseUserTokensAmount(ERC20 token, address account, uint tokensAmount) internal {
     uint tokenId = getTokenIdByToken(token);
-    _userTokensAmount[account][tokenId] += amountTokens;
+    _userTokensAmount[account][tokenId] += tokensAmount;
+}
+
+function _decreaseUserTokensAmount(ERC20 token, address account, uint tokensAmount) internal {
+    uint tokenId = getTokenIdByToken(token);
+    _userTokensAmount[account][tokenId] -= tokensAmount;
 }
 
 function getSwipeOrder(address account, uint index) public view returns(SwapOrder memory){
