@@ -184,9 +184,18 @@ function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amou
     require(tokenToBuy.allowance(msg.sender, address(this))>=tokensToBuyAmount, "not enough allowance");
     require(tokenToSell.allowance(currentSwapOrder.owner, address(this))>=amount, "not enough allowance");
     tokenToSell.transferFrom(currentSwapOrder.owner, msg.sender, amount);
+    //owner
+    
     tokenToBuy.transferFrom(msg.sender, currentSwapOrder.owner, tokensToBuyAmount);
+    //buyer
+
     currentSwapOrder.isCompleted = true;
     emit Swap(currentSwapOrder.owner, tokenToSellId, amount, msg.sender, tokenToBuyId, tokensToBuyAmount, currentSwapOrder.rate, block.timestamp);
+}
+
+function _increaseUserTokensAmount(ERC20 token, address account, uint amountTokens) internal {
+    uint tokenId = getTokenIdByToken(token);
+    _userTokensAmount[account][tokenId] += amountTokens;
 }
 
 function getSwipeOrder(address account, uint index) public view returns(SwapOrder memory){
