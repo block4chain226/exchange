@@ -183,12 +183,18 @@ function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amou
     uint tokensToBuyAmount = getTokensToBuyAmount(tokenToBuy, amount, currentSwapOrder.rate);
     require(tokenToBuy.allowance(msg.sender, address(this))>=tokensToBuyAmount, "not enough allowance");
     require(tokenToSell.allowance(currentSwapOrder.owner, address(this))>=amount, "not enough allowance");
-    tokenToSell.transferFrom(currentSwapOrder.owner, msg.sender, amount);
     //owner
-    
+    tokenToSell.transferFrom(currentSwapOrder.owner, msg.sender, amount);
+    _decreaseUserTokensAmount(tokenToSell, currentSwapOrder.owner, amount);
+    _increaseUserTokensAmount(tokenToBuy, currentSwapOrder.owner, tokensToBuyAmount);
+    _decrementUserCurrenciesAmount(tokenToSell, currentSwapOrder.owner);
+    _incrementUserCurrenciesAmount(tokenToBuy, currentSwapOrder.owner);
+     //buyer
     tokenToBuy.transferFrom(msg.sender, currentSwapOrder.owner, tokensToBuyAmount);
-    //buyer
-
+   _decreaseUserTokensAmount(tokenToBuy, msg.sender, tokensToBuyAmount);
+   _increaseUserTokensAmount(tokenToSell, msg.sender, amount);
+   _decrementUserCurrenciesAmount(tokenToBuy, msg.sender);
+   _incrementUserCurrenciesAmount(tokenToSell, msg.sender);
     currentSwapOrder.isCompleted = true;
     emit Swap(currentSwapOrder.owner, tokenToSellId, amount, msg.sender, tokenToBuyId, tokensToBuyAmount, currentSwapOrder.rate, block.timestamp);
 }
@@ -203,14 +209,14 @@ function _decreaseUserTokensAmount(ERC20 token, address account, uint tokensAmou
     _userTokensAmount[account][tokenId] -= tokensAmount;
 }
 
-function _incrementUserCurrenciesAmount(ERC20 token, address account, uint tokensAmount) internal {
+function _incrementUserCurrenciesAmount(ERC20 token, address account) internal {
      User storage  currentUser = _users[account];
      uint amountOfToken = token.balanceOf(account);
      //if before buing balance of token==0 we increment
      amountOfToken == 0 ? currentUser.currenciesCount++ : currentUser.currenciesCount;
 }
 
-function _decrementUserCurrenciesAmount(ERC20 token, address account, uint tokensAmount) internal {
+function _decrementUserCurrenciesAmount(ERC20 token, address account) internal {
      User storage  currentUser = _users[account];
      uint amountOfToken = token.balanceOf(account);
      //if after selling balance of token==0 we decrement
