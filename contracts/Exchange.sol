@@ -105,6 +105,8 @@ event SellToken(address seller, uint amount, uint rate, uint date);
 event SwapCreated(address owner, uint tokenToSellId, uint tokenToBuyId, uint amount, uint rate, uint date);
 event Swap(address seller, uint sellTokensId,uint sellTokensAmount, address buyer, uint buyTokensId, uint buyTokensAmount, uint sellTokensRate, uint date);
 
+bool locked;
+
 constructor(ERC20 _cardano, ERC20 _tether, ERC20 _zilliqa){
     // owner = payable(msg.sender);
     fee = 100 wei;
@@ -121,6 +123,13 @@ constructor(ERC20 _cardano, ERC20 _tether, ERC20 _zilliqa){
     _tokensRate[tether] = 20;
     _tokensRate[cardano] = 20;
     _tokensRate[zilliqa] = 40;
+}
+
+modifier noReentrancy(){
+    require(!locked, "no reentrancy");
+    locked = true;
+    _;
+    locked = false;
 }
 
 ///////////////////////////////User
@@ -172,7 +181,7 @@ function createSwapOrder(uint tokenToSellId, uint tokenToBuyId, uint amount, uin
      emit SwapCreated(msg.sender, tokenToSellId, tokenToBuyId, amount, rate, block.timestamp);
 }
 
-function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amount) public payable {
+function swap(uint swapOrderId, uint tokenToSellId, uint tokenToBuyId, uint amount) public payable noReentrancy {
     require(msg.value==fee, "you have not enough funds to pay fee(100 wei)");
     ERC20 tokenToSell = _idToToken[tokenToSellId];
     ERC20 tokenToBuy = _idToToken[tokenToBuyId];
@@ -228,7 +237,7 @@ function getSwipeOrder(address account, uint index) public view returns(SwapOrde
 }
 
 //////////////////////////////////Buy tokens
-function buyTokens(ERC20 token, address buyer, address tokensSeller) public payable returns(bool){
+function buyTokens(ERC20 token, address buyer, address tokensSeller) public payable noReentrancy returns(bool) {
     uint amountTokens;
     uint weiToReturnToBuyer;
     uint amountOfWei = msg.value;
@@ -266,7 +275,7 @@ function _validateBeforePurchase(address buyer , uint weiAmount) public view {
 }
 
 /////////////////////////////////Sell tokens
-function sellTokens(ERC20 token, uint amount) public returns(bool){
+function sellTokens(ERC20 token, uint amount) public noReentrancy returns(bool){
     uint tokensCosts = getTotalSellTokensCosts(token, amount);
     _validateBeforeSell(token, msg.sender, amount, tokensCosts);
     bool result = _sellProcess(amount, token);
@@ -326,11 +335,11 @@ function getTokenRate(ERC20 token) public view returns(uint){
 }
 
 //////////////////////////Withdraw operations
-function _refund(uint amountOfWei, ERC20 token) public payable {
+function _refund(uint amountOfWei, ERC20 token) public payable noReentrancy {
     payable(address(token)).transfer(amountOfWei);
 }
 
-function withdrawMoney() public onlyOwner() {
+function withdrawMoney() public onlyOwner noReentrancy {
     payable(owner()).transfer(address(this).balance);
 }
 
