@@ -274,7 +274,7 @@ function sellTokens(ERC20 token, uint amount) public returns(bool){
     //update buyer currenciesCount
     _decrementUserCurrenciesAmount(token, msg.sender);
     //update user tokensAmount
-   _decreaseUserTokensAmount(token, msg.sender, amount);
+    _decreaseUserTokensAmount(token, msg.sender, amount);
     //pay to owner of tokens
     payable(msg.sender).transfer(tokensCosts-fee);
     emit SellToken(msg.sender, amount, _tokensRate[token], block.timestamp);
