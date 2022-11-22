@@ -223,8 +223,6 @@ function _decrementUserCurrenciesAmount(ERC20 token, address account) internal {
      amountOfToken == 0 ? currentUser.currenciesCount-- : currentUser.currenciesCount;
 }
 
-
-
 function getSwipeOrder(address account, uint index) public view returns(SwapOrder memory){
     return _userSwapOrders[account][index];
 }
@@ -236,16 +234,12 @@ function buyTokens(ERC20 token, address buyer, address tokensSeller) public paya
     uint amountOfWei = msg.value;
     _validateBeforePurchase(msg.sender, amountOfWei);
     (amountTokens, weiToReturnToBuyer) = _getTokensAmount(token, amountOfWei);
-    
-    User storage  currentUser = _users[buyer];
-    uint amountOfToken = token.balanceOf(buyer);
     bool result = _purchaseProcess(buyer, amountTokens, token,  tokensSeller);
     require(result, "tokens was not sent");
     //update buyer currenciesCount
-    amountOfToken == 0 ? currentUser.currenciesCount++ : currentUser.currenciesCount;
+    _incrementUserCurrenciesAmount(token, buyer);
     //update user tokensAmount
-    uint tokenId = getTokenIdByToken(token);
-    _userTokensAmount[buyer][tokenId] += amountTokens;
+    _increaseUserTokensAmount(token, buyer, amountTokens);
     //if count of tokens will not integer, difference of wei will be returned to buyer
     if(weiToReturnToBuyer!=0){
         payable(buyer).transfer(weiToReturnToBuyer);
@@ -275,15 +269,12 @@ function _validateBeforePurchase(address buyer , uint weiAmount) public view {
 function sellTokens(ERC20 token, uint amount) public returns(bool){
     uint tokensCosts = getTotalSellTokensCosts(token, amount);
     _validateBeforeSell(token, msg.sender, amount, tokensCosts);
-    User storage currentUser = _users[msg.sender];
     bool result = _sellProcess(amount, token);
     require(result, "tokens were not sold");
-    uint amountOfToken = token.balanceOf(msg.sender);
     //update buyer currenciesCount
-    amountOfToken == 0 ? currentUser.currenciesCount-- : currentUser.currenciesCount;
+    _decrementUserCurrenciesAmount(token, msg.sender);
     //update user tokensAmount
-    uint tokenId = getTokenIdByToken(token);
-    _userTokensAmount[msg.sender][tokenId] -= amount;
+   _decreaseUserTokensAmount(token, msg.sender, amount);
     //pay to owner of tokens
     payable(msg.sender).transfer(tokensCosts-fee);
     emit SellToken(msg.sender, amount, _tokensRate[token], block.timestamp);
